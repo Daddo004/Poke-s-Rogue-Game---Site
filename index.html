@@ -1,0 +1,985 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PokéRogue</title>
+<meta name="description" content="PokéRogue: un roguelite d'azione amatoriale e non commerciale con i Pokémon di Kanto, Johto, Hoenn e Sinnoh.">
+<meta name="robots" content="noindex, nofollow">
+<style>
+/* The game's own fonts, served from this site: no request leaves for Google or anyone else. */
+@font-face { font-family: "Pixelify Sans"; src: url("fonts/PixelifySans.ttf") format("truetype"); font-weight: 400 700; font-display: swap; }
+@font-face { font-family: "Silkscreen"; src: url("fonts/Silkscreen-Regular.ttf") format("truetype"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Jersey 10"; src: url("fonts/Jersey10-Regular.ttf") format("truetype"); font-weight: 400; font-display: swap; }
+
+:root {
+  --sky0: #0c0a1f;
+  --panel: #1b1934;
+  --panel2: #232046;
+  --edge: #46427a;
+  --edge-hi: #6f69b3;
+  --ink: #eeeaff;
+  --muted: #a8a2d4;
+  --dim: #6f6a9c;
+  --gold: #f7c948;
+  --gold-deep: #c8901c;
+  --red: #e5483d;
+  --green: #6fd46a;
+  --xp: #4aa3ff;
+  --notch: 6px;
+  --maxw: 1180px;
+  /* type colours */
+  --t-normal: #a8a77a; --t-fire: #ee8130; --t-water: #6390f0; --t-electric: #f7d02c; --t-grass: #7ac74c;
+  --t-ice: #96d9d6; --t-fighting: #c22e28; --t-poison: #a33ea1; --t-ground: #e2bf65; --t-flying: #a98ff3;
+  --t-psychic: #f95587; --t-bug: #a6b91a; --t-rock: #b6a136; --t-ghost: #735797; --t-dragon: #6f35fc;
+  --t-dark: #705746; --t-steel: #b7b7ce;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+body {
+  margin: 0;
+  background: var(--sky0);
+  color: var(--ink);
+  font-family: "Pixelify Sans", system-ui, sans-serif;
+  font-size: 18px;
+  line-height: 1.55;
+  -webkit-font-smoothing: none;
+  overflow-x: hidden;
+}
+img { max-width: 100%; display: block; }
+a { color: var(--gold); }
+.num { font-family: "Jersey 10", "Pixelify Sans", monospace; letter-spacing: .02em; }
+.d { font-family: "Jersey 10", monospace; font-size: 1.28em; line-height: 0; letter-spacing: .03em; }
+.label .d, .chip .d, .todo .d { font-size: 1.5em; }
+.label { font-family: "Silkscreen", monospace; text-transform: uppercase; letter-spacing: .06em; font-size: 13px; }
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+@media (max-width: 600px) { .wrap { padding: 0 16px; } body { font-size: 17px; } }
+
+/* ---------- pixel frames ---------- */
+.notch {
+  clip-path: polygon(0 var(--notch), var(--notch) var(--notch), var(--notch) 0, calc(100% - var(--notch)) 0,
+    calc(100% - var(--notch)) var(--notch), 100% var(--notch), 100% calc(100% - var(--notch)),
+    calc(100% - var(--notch)) calc(100% - var(--notch)), calc(100% - var(--notch)) 100%, var(--notch) 100%,
+    var(--notch) calc(100% - var(--notch)), 0 calc(100% - var(--notch)));
+}
+.frame { background: var(--edge); padding: 3px; }
+.frame > .in { background: var(--panel); height: 100%; }
+.screen { background: #0a0918; padding: 4px; position: relative; cursor: zoom-in; }
+.screen img { width: 100%; height: auto; image-rendering: pixelated; }
+.screen::after {
+  content: ""; position: absolute; inset: 4px; pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(255,255,255,.025) 0 1px, transparent 1px 3px);
+}
+.screen .cap {
+  position: absolute; left: 12px; bottom: 12px; background: rgba(12,10,31,.86); padding: 4px 10px;
+  border: 2px solid var(--edge-hi); font-family: "Silkscreen", monospace; font-size: 12px; text-transform: uppercase;
+}
+
+/* ---------- top HUD bar ---------- */
+.xpbar { position: fixed; top: 0; left: 0; right: 0; height: 8px; background: #0a0918; z-index: 60; border-bottom: 2px solid #000; }
+.xpbar i { display: block; height: 100%; width: 0; background: linear-gradient(to bottom, #8cc8ff, var(--xp) 50%, #2a6fd0); }
+header.nav {
+  position: fixed; top: 8px; left: 0; right: 0; z-index: 50;
+  background: rgba(12,10,31,.82); backdrop-filter: blur(6px); border-bottom: 2px solid var(--edge);
+}
+.nav .wrap { display: flex; align-items: center; gap: 18px; height: 60px; }
+.nav .brand { font-weight: 700; font-size: 22px; color: var(--gold); text-decoration: none; text-shadow: 2px 2px 0 #3b2a05; white-space: nowrap; }
+.nav nav { display: flex; gap: 4px; margin-left: auto; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.nav nav::-webkit-scrollbar { display: none; }
+.nav nav a {
+  color: var(--muted); text-decoration: none; padding: 6px 10px; font-family: "Silkscreen", monospace; font-size: 12px;
+  text-transform: uppercase; white-space: nowrap; border: 2px solid transparent;
+}
+.nav nav a:hover, .nav nav a.on { color: var(--ink); border-color: var(--edge-hi); background: var(--panel2); }
+.nav .hud { display: flex; align-items: center; gap: 14px; font-size: 26px; line-height: 1; }
+.nav .hud .lv { white-space: nowrap; }
+.nav .hud .lv small { font-size: 18px; color: var(--muted); }
+.langs { display: flex; border: 2px solid var(--edge); flex: none; }
+.langs button {
+  font-family: "Silkscreen", monospace; font-size: 12px; padding: 5px 8px; border: 0; cursor: pointer;
+  color: var(--muted); background: transparent;
+}
+.langs button[aria-pressed="true"] { color: #241703; background: var(--gold); }
+@media (max-width: 1100px) { .nav nav { display: none; } .nav .hud { margin-left: auto; } }
+
+/* level-up toast */
+.toast {
+  position: fixed; top: 86px; left: 50%; transform: translate(-50%, -20px); z-index: 70; opacity: 0;
+  font-weight: 700; font-size: 26px; color: var(--gold); text-shadow: 2px 2px 0 #3b2a05, 0 0 18px rgba(247,201,72,.6);
+  pointer-events: none; transition: opacity .25s, transform .25s;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* legal strip */
+.strip {
+  margin-top: 70px; background: #120f2b; border-bottom: 2px solid var(--edge); color: var(--muted);
+  font-size: 14px; text-align: center; padding: 8px 16px;
+}
+.strip b { color: var(--ink); font-weight: 600; }
+
+/* ---------- hero ---------- */
+.hero {
+  position: relative; overflow: hidden;
+  background: linear-gradient(to bottom, var(--sky0) 0%, #15102f 45%, #221944 72%, #1d2a2e 100%);
+}
+.hero canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.hero .ground {
+  position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: max(100%, 980px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 38%, #000 62%); mask-image: linear-gradient(to bottom, transparent 38%, #000 62%);
+  image-rendering: pixelated; pointer-events: none;
+}
+/* the bottom padding leaves the parade of starters under the trailer */
+.hero .content { position: relative; z-index: 2; text-align: center; padding: clamp(48px, 8vh, 96px) 16px calc(max(100vw, 980px) * .165); }
+.eyebrow { color: var(--muted); }
+.eyebrow span { color: var(--gold); }
+h1.logo {
+  margin: 10px 0 8px; font-weight: 700; line-height: .95; font-size: clamp(44px, 13vw, 168px); color: var(--gold); white-space: nowrap;
+  text-shadow: 0 6px 0 var(--gold-deep), 0 12px 0 #3b2a05, 0 0 60px rgba(247,201,72,.35);
+  letter-spacing: .02em;
+}
+h1.logo span { display: inline-block; animation: hop 3.2s ease-in-out infinite; }
+@keyframes hop { 0%, 86%, 100% { transform: translateY(0); } 92% { transform: translateY(-10px); } }
+.tagline { font-size: clamp(22px, 3vw, 32px); font-weight: 600; margin: 18px auto 6px; max-width: 900px; }
+.tagline em { font-style: normal; color: var(--gold); }
+.lead { color: var(--muted); max-width: 680px; margin: 0 auto 28px; }
+.btns { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; gap: 10px; text-decoration: none; cursor: pointer; border: 0;
+  font-family: "Silkscreen", monospace; text-transform: uppercase; font-size: 15px; padding: 14px 22px;
+  color: #241703; background: var(--gold); box-shadow: inset 0 -5px 0 var(--gold-deep), inset 0 3px 0 #ffe7a0;
+  transition: transform .08s;
+}
+.btn:hover { transform: translateY(-2px); }
+.btn:active { transform: translateY(1px); }
+.btn.ghost { color: var(--ink); background: var(--panel2); box-shadow: inset 0 -5px 0 #12102a, inset 0 3px 0 #3c3870; }
+.key { font-family: "Silkscreen"; font-size: 11px; padding: 2px 6px; border: 2px solid currentColor; opacity: .8; }
+.hero .note { margin-top: 22px; color: var(--dim); font-size: 14px; }
+.trailer { max-width: 960px; margin: 44px auto 0; position: relative; }
+.trailer .frame { box-shadow: 0 30px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(247,201,72,.15); }
+.trailer .live {
+  position: absolute; top: 14px; right: 16px; z-index: 2; display: flex; align-items: center; gap: 8px;
+  font-family: "Silkscreen"; font-size: 12px; text-transform: uppercase; background: rgba(12,10,31,.86); padding: 4px 10px; border: 2px solid var(--red);
+}
+.trailer .live i { width: 9px; height: 9px; background: var(--red); animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* stats */
+.stats { position: relative; z-index: 3; margin-top: -2px; background: #0e0c22; border-top: 2px solid var(--edge); border-bottom: 2px solid var(--edge); }
+.stats .wrap { display: grid; grid-template-columns: repeat(8, 1fr); }
+.stat { padding: 22px 8px; text-align: center; border-right: 2px solid #1d1a3a; }
+.stat:last-child { border-right: 0; }
+.stat .num { font-size: 52px; line-height: 1; color: var(--ink); display: block; }
+.stat .label { color: var(--muted); font-size: 11px; }
+@media (max-width: 980px) { .stats .wrap { grid-template-columns: repeat(4, 1fr); } .stat:nth-child(4) { border-right: 0; } .stat:nth-child(-n+4) { border-bottom: 2px solid #1d1a3a; } }
+@media (max-width: 520px) { .stats .wrap { grid-template-columns: repeat(2, 1fr); } .stat:nth-child(2n) { border-right: 0; } .stat:nth-child(-n+6) { border-bottom: 2px solid #1d1a3a; } .stat .num { font-size: 44px; } }
+
+/* ---------- sections ---------- */
+section.block { padding: 110px 0; position: relative; }
+section.alt { background: linear-gradient(to bottom, #100d27, #141032); }
+.kicker { color: var(--gold); }
+h2 { font-size: clamp(34px, 5vw, 56px); line-height: 1.05; margin: 8px 0 14px; font-weight: 700; text-shadow: 3px 3px 0 #000; }
+h3 { font-size: 28px; line-height: 1.1; margin: 6px 0 10px; font-weight: 700; }
+.intro { color: var(--muted); max-width: 720px; font-size: 20px; }
+.center { text-align: center; }
+.center .intro { margin-left: auto; margin-right: auto; }
+
+/* how to play */
+.how { display: grid; grid-template-columns: 1.35fr 1fr; gap: 40px; align-items: center; margin-top: 46px; }
+.steps { display: grid; gap: 14px; }
+.step { display: grid; grid-template-columns: 54px 1fr; gap: 16px; align-items: start; }
+.step .n {
+  width: 54px; height: 54px; display: grid; place-items: center; font-family: "Jersey 10"; font-size: 40px;
+  background: var(--gold); color: #241703; box-shadow: inset 0 -5px 0 var(--gold-deep);
+}
+.step b { display: block; font-size: 21px; }
+.step p { margin: 2px 0 0; color: var(--muted); }
+@media (max-width: 900px) { .how { grid-template-columns: 1fr; } }
+
+/* features */
+.feature { display: grid; grid-template-columns: 1.25fr 1fr; gap: 48px; align-items: center; margin-top: 90px; }
+.feature.flip { grid-template-columns: 1fr 1.25fr; }
+.feature.flip .media { order: 2; }
+.feature.tr .media { order: -1; }
+.feature .media { display: grid; gap: 14px; }
+.feature .media.two { grid-template-columns: 1fr 1fr; }
+.feature .media.two .wide { grid-column: 1 / -1; }
+.feature p { color: var(--muted); }
+.feature ul { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 8px; }
+.feature li { padding-left: 26px; position: relative; color: var(--ink); }
+.feature li::before { content: ""; position: absolute; left: 4px; top: .55em; width: 10px; height: 10px; background: var(--gold); box-shadow: 2px 2px 0 var(--gold-deep); }
+@media (max-width: 900px) { .feature, .feature.flip { grid-template-columns: 1fr; gap: 24px; margin-top: 70px; } .feature.flip .media { order: 0; } }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.chip {
+  font-family: "Silkscreen"; font-size: 12px; text-transform: uppercase; padding: 5px 10px; color: #fff;
+  background: var(--c, var(--panel2)); box-shadow: inset 0 -3px 0 rgba(0,0,0,.35); text-shadow: 1px 1px 0 rgba(0,0,0,.5);
+}
+.chip.light { color: #1b1934; text-shadow: none; }
+.tag { display: inline-block; margin-bottom: 4px; }
+
+/* statuses */
+.statuses { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; max-width: 1000px; margin: 28px auto 0; }
+.status { text-align: center; padding: 14px 6px; background: var(--panel); border: 2px solid var(--edge); }
+.status .ico { width: 34px; height: 34px; margin: 0 auto 8px; display: grid; place-items: center; font-family: "Silkscreen"; font-size: 12px; color: #fff; background: var(--c); box-shadow: inset 0 -4px 0 rgba(0,0,0,.35); }
+.status .label { font-size: 11px; }
+.status p { margin: 6px 0 0; color: var(--muted); font-size: 14px; line-height: 1.35; }
+@media (max-width: 700px) { .statuses { grid-template-columns: repeat(3, 1fr); } }
+
+/* specials marquee */
+.marquee { margin-top: 46px; overflow: hidden; -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent); }
+.track { display: flex; gap: 16px; width: max-content; animation: slide 70s linear infinite; }
+.marquee:hover .track { animation-play-state: paused; }
+@keyframes slide { to { transform: translateX(-50%); } }
+.special { width: 340px; flex: none; }
+.special .screen { padding: 3px; }
+.special .meta { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+.special .meta b { font-size: 19px; }
+
+/* regions */
+.tabs { display: flex; gap: 8px; margin: 34px 0 22px; flex-wrap: wrap; }
+.tab {
+  font-family: "Silkscreen"; text-transform: uppercase; font-size: 14px; padding: 12px 18px; cursor: pointer;
+  color: var(--muted); background: var(--panel); border: 2px solid var(--edge);
+}
+.tab[aria-selected="true"] { color: #241703; background: var(--gold); border-color: var(--gold); box-shadow: inset 0 -4px 0 var(--gold-deep); }
+.levels { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+.level .screen { padding: 3px; }
+.level .name { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; gap: 8px; }
+.level .name b { font-size: 19px; }
+.level .name .label { color: var(--dim); font-size: 11px; white-space: nowrap; }
+.diffs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 46px; }
+.diff .in { padding: 20px; }
+.diff h3 { margin: 0 0 6px; }
+.diff p { color: var(--muted); margin: 0; }
+.diff.n h3 { color: var(--green); } .diff.h h3 { color: #ffb347; } .diff.u h3 { color: #ff6a8a; }
+@media (max-width: 760px) { .diffs { grid-template-columns: 1fr; } }
+
+/* progression cards */
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 46px; }
+.grid3 + .grid3 { margin-top: 18px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 18px; }
+.card .in { display: flex; flex-direction: column; }
+.card .screen { padding: 0; }
+.card .screen::after { inset: 0; }
+.card .body { padding: 18px 20px 22px; }
+.card .body p { color: var(--muted); margin: 0; }
+@media (max-width: 900px) { .grid3, .grid2 { grid-template-columns: 1fr; } }
+
+/* platforms */
+.plat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 46px; }
+.plat .in { padding: 22px; }
+.plat .icon { font-family: "Jersey 10"; font-size: 46px; line-height: 1; color: var(--gold); }
+.plat p { color: var(--muted); margin: 6px 0 0; }
+@media (max-width: 900px) { .plat { grid-template-columns: 1fr; } }
+
+/* faq */
+.faq { max-width: 860px; margin: 40px auto 0; display: grid; gap: 10px; }
+details { background: var(--panel); border: 2px solid var(--edge); }
+summary { cursor: pointer; padding: 16px 20px; font-weight: 600; font-size: 20px; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; font-family: "Jersey 10"; font-size: 30px; line-height: .8; color: var(--gold); }
+details[open] summary::after { content: "−"; }
+details p { margin: 0; padding: 0 20px 18px; color: var(--muted); }
+
+/* placeholders still to decide */
+.todo {
+  display: inline-block; font-family: "Silkscreen"; font-size: 11px; text-transform: uppercase; padding: 2px 7px;
+  color: #1b0c00; background: repeating-linear-gradient(45deg, #ffb347 0 6px, #ffc976 6px 12px); vertical-align: middle;
+}
+
+/* legal */
+.legal { background: #0a0918; border-top: 2px solid var(--edge); }
+.legal .box .in { padding: 34px clamp(20px, 4vw, 44px); }
+.legal h2 { font-size: clamp(30px, 4vw, 44px); }
+.legal h3 { font-size: 21px; margin-top: 26px; color: var(--gold); }
+.legal p { color: #cfcaf0; font-size: 17px; }
+.legal .seal {
+  display: flex; gap: 18px; align-items: center; padding: 16px 18px; margin: 18px 0 8px; background: #16132f; border: 2px dashed var(--edge-hi);
+}
+.legal .seal .big { font-family: "Jersey 10"; font-size: 54px; line-height: .9; color: var(--gold); flex: none; }
+.credits { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 12px; }
+.credit { background: #16132f; border: 2px solid #2a2752; padding: 12px 14px; }
+.credit b { display: block; color: var(--ink); }
+.credit span { color: var(--muted); font-size: 15px; }
+@media (max-width: 700px) { .credits { grid-template-columns: 1fr; } }
+
+footer { padding: 34px 0 46px; color: var(--dim); font-size: 14px; text-align: center; background: #07061a; border-top: 2px solid #1d1a3a; }
+footer .brand { font-weight: 700; color: var(--gold); font-size: 22px; }
+
+/* reveal */
+.rv { opacity: 0; transform: translateY(26px); transition: opacity .6s ease, transform .6s ease; }
+.rv.in-view { opacity: 1; transform: none; }
+
+/* lightbox */
+.lb { position: fixed; inset: 0; z-index: 100; background: rgba(5,4,15,.93); display: none; place-items: center; padding: 24px; cursor: zoom-out; }
+.lb.open { display: grid; }
+.lb img { max-width: min(1600px, 100%); max-height: 86vh; image-rendering: pixelated; border: 4px solid var(--edge-hi); }
+.lb .cap { margin-top: 12px; text-align: center; color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .track, h1.logo span, .trailer .live i { animation: none; }
+  .rv { opacity: 1; transform: none; transition: none; }
+}
+</style>
+</head>
+<body>
+<!--
+  Translations: an element with data-en holds its English HTML (the Italian one is what it starts with).
+  Images take data-en-alt, screenshots data-en-cap. Lists built in the script carry both languages.
+-->
+
+<div class="xpbar" aria-hidden="true"><i id="xp"></i></div>
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top">PokéRogue</a>
+    <nav aria-label="Sezioni" data-en-label="Sections">
+      <a href="#gioco" data-en="The game">Il gioco</a>
+      <a href="#caratteristiche" data-en="Features">Caratteristiche</a>
+      <a href="#speciali" data-en="Special moves">Mosse speciali</a>
+      <a href="#regioni" data-en="Regions">Regioni</a>
+      <a href="#progressione" data-en="Progression">Progressione</a>
+      <a href="#piattaforme" data-en="Platforms">Piattaforme</a>
+      <a href="#legale" data-en="Legal">Note legali</a>
+    </nav>
+    <div class="hud" aria-hidden="true">
+      <span class="num clock" id="clock">00:00</span>
+      <span class="num lv"><small>Lv</small> <span id="lv">1</span></span>
+    </div>
+    <div class="langs" role="group" aria-label="Lingua / Language">
+      <button type="button" data-lang="it" aria-pressed="true">IT</button>
+      <button type="button" data-lang="en" aria-pressed="false">EN</button>
+    </div>
+  </div>
+</header>
+<div class="toast" id="toast" aria-hidden="true">LEVEL UP!</div>
+
+<div class="strip" id="top" data-en="<b>An amateur, personal, non-commercial project.</b> Not affiliated with, sponsored or endorsed by Nintendo, The Pokémon Company, Creatures Inc. or GAME FREAK inc. <a href=&quot;#legale&quot;>Read the legal notes</a>">
+  <b>Progetto amatoriale, personale e non commerciale.</b> Non affiliato, sponsorizzato né approvato da Nintendo, The Pokémon Company, Creatures Inc. o GAME FREAK inc.
+  <a href="#legale">Leggi le note legali</a>
+</div>
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <canvas id="stars" aria-hidden="true"></canvas>
+  <img class="ground" src="img/titolo.png" alt="" aria-hidden="true">
+  <div class="content">
+    <div class="eyebrow label" data-en="Action roguelite · <span>4 regions</span> · <i style=&quot;font-style:normal;white-space:nowrap&quot;>Gen 1–4</i>">Roguelite d'azione · <span>4 regioni</span> · <i style="font-style:normal;white-space:nowrap">Gen 1–4</i></div>
+    <h1 class="logo" aria-label="PokéRogue"><span>P</span><span>O</span><span>K</span><span>É</span><span>R</span><span>O</span><span>G</span><span>U</span><span>E</span></h1>
+    <p class="tagline" data-en="One Pokémon. <em>A thousand foes.</em> Fifteen minutes to survive.">Un Pokémon. <em>Mille nemici.</em> Quindici minuti per sopravvivere.</p>
+    <p class="lead" data-en="Your Pokémon attacks on its own: you move, pick the right moves and evolve before the horde swallows you. No two runs are alike.">Il tuo Pokémon attacca da solo: tu pensi a muoverti, a scegliere le mosse giuste e a evolvere prima che l'orda ti travolga. Ogni partita è diversa.</p>
+    <div class="btns">
+      <a class="btn" href="#gioco" data-en="How it plays <span class=&quot;key&quot;>Enter</span>">Guarda come si gioca <span class="key">Invio</span></a>
+      <a class="btn ghost" href="#legale" data-en="Legal notes">Note legali</a>
+    </div>
+    <p class="note" data-en="A home-made game for personal use. It is not for sale and never will be.">Gioco fatto in casa, per uso personale. Non è in vendita e non lo sarà mai.</p>
+    <div class="trailer">
+      <div class="live"><i></i><span data-en="Real gameplay">Partita vera</span></div>
+      <div class="frame notch"><div class="screen notch" data-cap="Charmeleon al minuto 5:47, livello 17, cinque mosse attive" data-en-cap="Charmeleon at minute 5:47, level 17, five moves running">
+        <img src="img/clip-partita.gif" data-still="img/partita.png" width="640" height="360" alt="Charmeleon in mezzo all'orda, con le mosse che colpiscono da sole e i numeri dei danni" data-en-alt="Charmeleon in the middle of the horde, moves hitting on their own with damage numbers">
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<div class="stats">
+  <div class="wrap">
+    <div class="stat"><span class="num" data-count="81">0</span><span class="label" data-en="Playable Pokémon">Pokémon giocabili</span></div>
+    <div class="stat"><span class="num" data-count="153">0</span><span class="label" data-en="Species">Specie</span></div>
+    <div class="stat"><span class="num" data-count="47">0</span><span class="label" data-en="Moves">Mosse</span></div>
+    <div class="stat"><span class="num" data-count="17">0</span><span class="label" data-en="Special moves">Mosse speciali</span></div>
+    <div class="stat"><span class="num" data-count="53">0</span><span class="label" data-en="Trainers">Allenatori</span></div>
+    <div class="stat"><span class="num" data-count="25">0</span><span class="label" data-en="Levels">Livelli</span></div>
+    <div class="stat"><span class="num" data-count="16">0</span><span class="label" data-en="Plates">Lastre</span></div>
+    <div class="stat"><span class="num" data-count="1500">0</span><span class="label" data-en="Foes on screen">Nemici a schermo</span></div>
+  </div>
+</div>
+
+<!-- ============ HOW TO PLAY ============ -->
+<section class="block" id="gioco">
+  <div class="wrap">
+    <div class="rv">
+      <div class="kicker label" data-en="The game">Il gioco</div>
+      <h2 data-en="Easy to learn,<br>hard to put down.">Facile da capire,<br>difficile da posare.</h2>
+      <p class="intro" data-en="A &quot;bullet heaven&quot; with Pokémon: no turns, no battle menus. Just you, your Pokémon and a horde that grows bigger, faster and meaner minute after minute.">Un "bullet heaven" con i Pokémon: niente turni, niente menu di lotta. Solo tu, il tuo Pokémon e un'orda che diventa più grande, più veloce e più cattiva minuto dopo minuto.</p>
+    </div>
+    <div class="how">
+      <div class="frame notch rv"><div class="screen notch" data-cap="Bosco Smeraldo, primi secondi: Pikachu e Ash contro i primi Weedle e Caterpie" data-en-cap="Viridian Forest, first seconds: Pikachu and Ash against the first Weedle and Caterpie">
+        <img src="img/partita.png" alt="Pikachu al centro di un prato pieno di Pokémon selvatici, con l'interfaccia del gioco" data-en-alt="Pikachu in the middle of a meadow full of wild Pokémon, with the game's HUD" loading="lazy">
+        <span class="cap" data-en="In game · 2560×1440">In partita · 2560×1440</span>
+      </div></div>
+      <div class="steps rv">
+        <div class="step"><div class="n">1</div><div data-en="<b>Pick a Pokémon and a trainer</b><p>81 evolution lines to unlock, each with its own ability and move. The trainer adds a bonus and an active power.</p>"><b>Scegli Pokémon e allenatore</b><p>81 linee evolutive da sbloccare, ognuna con abilità e mossa propria. L'allenatore aggiunge un bonus e un potere attivo.</p></div></div>
+        <div class="step"><div class="n">2</div><div data-en="<b>Move, it does the rest</b><p>Moves fire on their own. You dodge, position yourself and collect Exp gems.</p>"><b>Muoviti, al resto pensa lui</b><p>Le mosse partono da sole. Tu schivi, ti posizioni e raccogli le gemme Esp.</p></div></div>
+        <div class="step"><div class="n">3</div><div data-en="<b>Level up, pick a card</b><p>New moves, upgrades, held items. Reroll, skip or banish the cards you don't want.</p>"><b>Sali di livello, scegli una carta</b><p>Nuove mosse, potenziamenti, strumenti. Rilancia, salta o bandisci le carte che non vuoi.</p></div></div>
+        <div class="step"><div class="n">4</div><div data-en="<b>Hold out and beat the boss</b><p>When time runs out, the Lord of the level arrives. Win, bank your coins and unlock the rest.</p>"><b>Resisti e batti il boss</b><p>Allo scadere del tempo arriva il Signore del livello. Vinci, porta a casa le monete e sblocca il resto.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FEATURES ============ -->
+<section class="block alt" id="caratteristiche">
+  <div class="wrap">
+    <div class="rv center">
+      <div class="kicker label" data-en="Features">Caratteristiche</div>
+      <h2 data-en="Everything inside">Tutto quello che c'è dentro</h2>
+      <p class="intro" data-en="Ten development blocks, hundreds of details. Here are the main ones.">Dieci blocchi di sviluppo, centinaia di dettagli. Ecco i principali.</p>
+    </div>
+
+    <div class="feature rv">
+      <div class="media"><div class="frame notch"><div class="screen notch" data-cap="Uno sciame di Zubat attraversa il campo" data-en-cap="A swarm of Zubat sweeps across the field">
+        <img src="img/orda.png" alt="Uno sciame di Zubat e altri Pokémon selvatici che circondano Pikachu" data-en-alt="A swarm of Zubat and other wild Pokémon closing in on Pikachu" loading="lazy"><span class="cap" data-en="Zubat swarm">Sciame di Zubat</span>
+      </div></div></div>
+      <div>
+        <span class="chip tag" style="--c: var(--red)" data-en="Hordes">Orde</span>
+        <h3 data-en="The horde never stops">L'orda non si ferma</h3>
+        <p data-en="Up to 1,500 foes on screen at 60 FPS. Timed waves, swarms crossing the map, rings of Diglett closing you in and herds of Tauros charging in a line.">Fino a 1.500 nemici sullo schermo a 60 FPS. Ondate a tempo, sciami che attraversano la mappa, anelli di Diglett che ti chiudono in trappola e mandrie di Tauros che caricano in linea.</p>
+        <div class="chips">
+          <span class="chip" style="--c: var(--t-bug)" data-en="Shooters">Tiratori</span>
+          <span class="chip" style="--c: var(--t-normal)" data-en="Chargers">Caricatori</span>
+          <span class="chip" style="--c: var(--t-steel)" data-en="Tanks">Corazzati</span>
+          <span class="chip light" style="--c: var(--t-electric)" data-en="Kamikaze">Kamikaze</span>
+          <span class="chip" style="--c: var(--t-psychic)" data-en="Teleporters">Teletrasporto</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="feature flip rv">
+      <div class="media two">
+        <div class="frame notch"><div class="screen notch" data-cap="La finestra di level-up: le carte tra cui scegliere" data-en-cap="The level-up window: the cards to choose from"><img src="img/levelup.png" alt="Finestra di level-up con carte di mosse e strumenti" data-en-alt="Level-up window with move and item cards" loading="lazy"></div></div>
+        <div class="frame notch"><div class="screen notch" data-cap="Una mossa evoluta in azione" data-en-cap="An evolved move in action"><img src="img/mossa-evoluta.png" alt="Una mossa evoluta che colpisce l'orda" data-en-alt="An evolved move hitting the horde" loading="lazy"></div></div>
+        <div class="frame notch wide"><div class="screen notch" data-cap="Gli strumenti tenuti, con le icone del gioco" data-en-cap="The held items, with their in-game icons"><img src="img/strumenti.png" alt="Elenco degli strumenti tenuti" data-en-alt="List of held items" loading="lazy"><span class="cap" data-en="17 held items">17 strumenti</span></div></div>
+      </div>
+      <div>
+        <span class="chip tag" style="--c: var(--t-fire)" data-en="Moves">Mosse</span>
+        <h3 data-en="35 moves, 11 ways to hit">35 mosse, 11 modi di colpire</h3>
+        <p data-en="Projectiles, boomerangs, orbits, auras, slashes, beams, trails, rings… Every move has its own hand-made effect, levels up to 8 and, with the right item, <b>evolves</b> into one of the 12 evolved moves.">Proiettili, boomerang, orbite, aure, fendenti, raggi, scie, anelli… Ogni mossa ha il suo effetto disegnato a mano, sale fino al livello 8 e, con lo strumento giusto, <b>si evolve</b> in una delle 12 mosse evolute.</p>
+        <ul data-en="<li>Full type chart: weaknesses and resistances matter</li><li>Up to 5 moves, the sixth slot is unlocked over time</li><li>17 held items, from Focus Sash to Metronome</li>">
+          <li>Tabella dei tipi completa: debolezze e resistenze contano</li>
+          <li>Massimo 5 mosse, la sesta si sblocca col tempo</li>
+          <li>17 strumenti tenuti, dal Focalnastro al Metronomo</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="feature tr rv">
+      <div>
+        <span class="chip tag" style="--c: var(--gold-deep)" data-en="Evolution">Evoluzione</span>
+        <h3 data-en="Your Pokémon grows with you">Il tuo Pokémon cresce con te</h3>
+        <p data-en="During the run your Pokémon really evolves: full sequence, cry, rising stats. Eevee picks one of seven paths, Kirlia one of two. Some evolutions need a stone, which comes from chests.">Durante la partita il tuo Pokémon si evolve davvero: sequenza completa, verso, statistiche che salgono. Eevee sceglie fra sette strade, Kirlia fra due. Alcune evoluzioni chiedono una pietra, che arriva dai forzieri.</p>
+        <ul data-en="<li>52 abilities, passive or triggered with <span class=&quot;key&quot;>Space</span></li><li>Ditto copies the strongest foe, Arceus changes type</li><li>Every line has its own starting move and its own special</li>">
+          <li>52 abilità, passive o da attivare con <span class="key">Spazio</span></li>
+          <li>Ditto copia il nemico più forte, Arceus cambia tipo</li>
+          <li>Ogni linea ha la sua mossa di partenza e la sua speciale</li>
+        </ul>
+      </div>
+      <div class="media two">
+        <div class="frame notch"><div class="screen notch" data-cap="Charmander si è evoluto in Charmeleon, con il confronto delle statistiche" data-en-cap="Charmander evolved into Charmeleon, with the stats compared"><img src="img/evoluzione.png" alt="Schermata Congratulazioni: Charmander si è evoluto in Charmeleon" data-en-alt="Congratulations screen: Charmander evolved into Charmeleon" loading="lazy"></div></div>
+        <div class="frame notch"><div class="screen notch" data-cap="Eevee sceglie tra sette evoluzioni" data-en-cap="Eevee picks one of seven evolutions"><img src="img/eevee.png" alt="Scelta dell'evoluzione di Eevee" data-en-alt="Eevee's evolution choice" loading="lazy"></div></div>
+        <div class="frame notch wide"><div class="screen notch" data-cap="Il pannello delle abilità" data-en-cap="The abilities panel"><img src="img/abilita.png" alt="Pannello delle abilità del Pokémon" data-en-alt="The Pokémon abilities panel" loading="lazy"><span class="cap" data-en="52 abilities">52 abilità</span></div></div>
+      </div>
+    </div>
+
+    <div class="feature flip rv">
+      <div class="media"><div class="frame notch"><div class="screen notch" data-cap="Una Ball forziere caduta da un Dominante" data-en-cap="A chest Ball dropped by a Dominant"><img src="img/dominante.png" alt="Un Pokémon Dominante e il suo forziere sul campo" data-en-alt="A Dominant Pokémon and its chest on the field" loading="lazy"><span class="cap" data-en="Dominants and chests">Dominanti e forzieri</span></div></div></div>
+      <div>
+        <span class="chip tag" style="--c: var(--red)" data-en="Dominants">Dominanti</span>
+        <h3 data-en="Giants, chests and shinies">Giganti, forzieri e cromatici</h3>
+        <p data-en="&quot;A DOMINANT PIDGEOTTO IS COMING!&quot; Every now and then a huge Pokémon with a red aura enters the field. Beat it and it drops a Ball: the rewards are inside, sometimes the evolved move you were waiting for.">"PIDGEOTTO DOMINANTE IN ARRIVO!" Ogni tanto un Pokémon enorme, con l'aura rossa, entra in campo. Battilo e lascia cadere una Ball: dentro ci sono i premi, e a volte la mossa evoluta che aspettavi.</p>
+        <ul data-en="<li><b>Dominants</b>: twice the size, tougher, immune to freeze and sleep</li><li><b>Chests</b> in Poké, Great and Ultra Balls: 1, 3 or 5 rewards at once</li><li><b>Shinies</b>: very rare, very strong, very generous</li>">
+          <li><b>Dominanti</b>: doppi, più duri, immuni a gelo e sonno</li>
+          <li><b>Forzieri</b> Poké, Mega e Ultra Ball: 1, 3 o 5 premi in un colpo</li>
+          <li><b>Cromatici</b>: rarissimi, fortissimi, generosissimi</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="rv center" style="margin-top:100px">
+      <span class="chip tag" style="--c: var(--t-poison)" data-en="Statuses">Stati</span>
+      <h3 data-en="Six status conditions">Sei stati alterati</h3>
+      <p class="intro" style="font-size:18px" data-en="Each status has its own rules, an icon over the head and its own small coloured numbers. Fire melts ice, and immune types couldn't care less.">Ogni stato ha regole sue, un'icona sopra la testa e i suoi piccoli numeri colorati. Il Fuoco scioglie il ghiaccio, i tipi immuni se ne infischiano.</p>
+      <div class="statuses">
+        <div class="status" style="--c: var(--t-fire)"><div class="ico">BRN</div><div data-en="<span class=&quot;label&quot;>Burn</span><p>Damage over time, half contact damage</p>"><span class="label">Scottatura</span><p>Danni nel tempo, contatto dimezzato</p></div></div>
+        <div class="status" style="--c: var(--t-poison)"><div class="ico">PSN</div><div data-en="<span class=&quot;label&quot;>Poison</span><p>Drains HP every second</p>"><span class="label">Veleno</span><p>Toglie PS ogni secondo</p></div></div>
+        <div class="status" style="--c: #d8b30e"><div class="ico">PAR</div><div data-en="<span class=&quot;label&quot;>Paralysis</span><p>Half speed, locks up</p>"><span class="label">Paralisi</span><p>Metà velocità, si blocca</p></div></div>
+        <div class="status" style="--c: #49a9c9"><div class="ico">FRZ</div><div data-en="<span class=&quot;label&quot;>Freeze</span><p>Stuck in a block of ice</p>"><span class="label">Gelo</span><p>Fermo in un blocco di ghiaccio</p></div></div>
+        <div class="status" style="--c: #7d7aa8"><div class="ico">SLP</div><div data-en="<span class=&quot;label&quot;>Sleep</span><p>Sleeps on even when hit</p>"><span class="label">Sonno</span><p>Dorme anche se colpito</p></div></div>
+        <div class="status" style="--c: var(--t-psychic)"><div class="ico">CNF</div><div data-en="<span class=&quot;label&quot;>Confusion</span><p>Wanders and hits itself</p>"><span class="label">Confusione</span><p>Vaga e si colpisce da solo</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SPECIALS ============ -->
+<section class="block" id="speciali">
+  <div class="wrap">
+    <div class="feature rv" style="margin-top:0">
+      <div class="media"><div class="frame notch"><div class="screen notch" data-cap="Charmander usa la mossa speciale Fuocobomba" data-en-cap="Charmander unleashes its special move, Fire Blast">
+        <img src="img/clip-speciale.gif" data-still="img/speciale.png" width="640" height="360" alt="Banda rossa con il ritratto di Charmander, poi l'illustrazione di fuoco a tutto schermo" data-en-alt="Red banner with Charmander's portrait, then the full-screen fire picture" loading="lazy"><span class="cap">Cut-in</span>
+      </div></div></div>
+      <div>
+        <div class="kicker label" data-en="Special moves">Mosse speciali</div>
+        <h2 data-en="Fill the bar.<br>Press <span class=&quot;num&quot; style=&quot;color:var(--gold)&quot;>E</span>.">Riempi la barra.<br>Premi <span class="num" style="color:var(--gold)">E</span>.</h2>
+        <p class="intro" style="font-size:18px" data-en="Every knockout charges the special move. When it's full, time stops: a cut-in with the portrait, a full-screen picture of the type, a white flash… and the screen is wiped clean. One for each of the 17 types.">Ogni KO carica la mossa speciale. Quando è piena il tempo si ferma: cut-in col ritratto, un'illustrazione a schermo intero del tipo, un lampo bianco… e lo schermo si svuota. Una per ognuno dei 17 tipi.</p>
+      </div>
+    </div>
+  </div>
+  <div class="marquee rv" aria-label="Le 17 mosse speciali" data-en-label="The 17 special moves">
+    <div class="track" id="track"></div>
+  </div>
+</section>
+
+<!-- ============ BOSSES / TRAINERS / ENDLESS ============ -->
+<section class="block alt">
+  <div class="wrap">
+    <div class="feature rv" style="margin-top:0">
+      <div class="media two">
+        <div class="frame notch wide"><div class="screen notch" data-cap="L'arrivo del boss: Pinsir, Signore del Bosco" data-en-cap="The boss arrives: Pinsir, Lord of the Forest"><img src="img/boss.png" alt="Pinsir, il boss del Bosco Smeraldo, appena atterrato" data-en-alt="Pinsir, the Viridian Forest boss, just landed" loading="lazy"><span class="cap" data-en="Lord of the Forest">Signore del Bosco</span></div></div>
+        <div class="frame notch"><div class="screen notch" data-cap="L'attacco dei massi: cerchi rossi, poi le rocce cadono" data-en-cap="The rockfall attack: red circles, then the rocks come down"><img src="img/massi.png" alt="Cerchi rossi a terra che segnalano la caduta dei massi" data-en-alt="Red circles on the ground warning of falling rocks" loading="lazy"></div></div>
+        <div class="frame notch"><div class="screen notch" data-cap="La mappa in pausa, con le icone di tutto quello che hai trovato" data-en-cap="The pause map, with icons for everything you found"><img src="img/mappa.png" alt="Menu di pausa con la mappa esplorata del livello" data-en-alt="Pause menu with the explored level map" loading="lazy"></div></div>
+      </div>
+      <div>
+        <span class="chip tag" style="--c: var(--red)">Boss</span>
+        <h3 data-en="When time is up, here it comes">Allo scadere, arriva lui</h3>
+        <p data-en="Black bars, the boss drops from the sky, the ground shakes and its cry fills the screen. Three phases, attacks in turn, roars that push the horde back. Every level has its own, and legendaries wait in the hardest ones.">Barre nere, il boss cade dal cielo, la terra trema e il suo verso riempie lo schermo. Tre fasi, attacchi a turno, ruggiti che respingono l'orda. Ogni livello ha il suo, e i leggendari aspettano nei livelli più difficili.</p>
+      </div>
+    </div>
+
+    <div class="feature flip rv">
+      <div class="media two">
+        <div class="frame notch wide"><div class="screen notch" data-cap="La Campionessa Camilla lancia la sfida" data-en-cap="Champion Cynthia issues her challenge"><img src="img/camilla.png" alt="Banda d'ingresso della Campionessa Camilla con le sue cinque Ball" data-en-alt="Champion Cynthia's entrance banner with her five Balls" loading="lazy"><span class="cap" data-en="Challenge!">Ti sfida!</span></div></div>
+        <div class="frame notch"><div class="screen notch" data-cap="Scelta dell'allenatore" data-en-cap="Trainer selection"><img src="img/allenatori.png" alt="Schermata di scelta dell'allenatore" data-en-alt="Trainer selection screen" loading="lazy"></div></div>
+        <div class="frame notch"><div class="screen notch" data-cap="I dieci poteri degli allenatori" data-en-cap="The trainers' ten powers"><img src="img/poteri.png" alt="Tavola dei dieci tipi di potere degli allenatori" data-en-alt="Sheet of the trainers' ten kinds of power" loading="lazy"></div></div>
+      </div>
+      <div>
+        <span class="chip tag" style="--c: var(--t-water)" data-en="Trainers">Allenatori</span>
+        <h3 data-en="53 trainers by your side">53 allenatori al tuo fianco</h3>
+        <p data-en="Ash to begin with, then every Gym Leader, Elite Four member and Champion from the first to the fourth generation, plus Red. Each has a passive bonus, an active power (shield, heal, wave, slowed time…) and a team you must beat on Ultra to unlock them.">Ash all'inizio, poi tutti i Capipalestra, i Superquattro e i Campioni dalla prima alla quarta generazione, più Rosso. Ognuno ha un bonus passivo, un potere attivo (scudo, cura, onda, tempo rallentato…) e una squadra che a difficoltà Ultra devi battere per sbloccarlo.</p>
+      </div>
+    </div>
+
+    <div class="feature rv">
+      <div class="media"><div class="frame notch"><div class="screen notch" data-cap="Modalità infinita, minuto 30: arriva Darkrai" data-en-cap="Endless mode, minute 30: Darkrai arrives"><img src="img/darkrai.png" alt="Darkrai enorme in mezzo a un'orda sterminata, con la barra del boss" data-en-alt="A huge Darkrai in an endless horde, with the boss bar" loading="lazy"><span class="cap">30:04 · Darkrai</span></div></div></div>
+      <div>
+        <span class="chip tag" style="--c: var(--t-dark)" data-en="Endless">Infinita</span>
+        <h3 data-en="What if it never ended?">E se non finisse mai?</h3>
+        <p data-en="Beat the boss and the run goes on: the waves come back, stronger and stronger. At minute 30 darkness falls on the field and <b>Darkrai</b>, the reaper, arrives. It puts you to sleep, teleports and grows angrier every minute. Beating it is the only way to get it.">Batti il boss e la partita va avanti: le ondate tornano, sempre più forti. Al minuto 30 il buio cala sul campo e arriva <b>Darkrai</b>, il mietitore. Ti fa addormentare, si teletrasporta, si arrabbia ogni minuto di più. Batterlo è l'unico modo per averlo.</p>
+      </div>
+    </div>
+
+    <div class="feature flip rv">
+      <div class="media two">
+        <div class="frame notch"><div class="screen notch" data-cap="Scegli la Lastra con cui partire" data-en-cap="Pick the Plate to start with"><img src="img/lastre.png" alt="Scelta della Lastra di Arceus" data-en-alt="Choosing one of Arceus' Plates" loading="lazy"></div></div>
+        <div class="frame notch"><div class="screen notch" data-cap="Kecleon, il mercante mimetizzato" data-en-cap="Kecleon, the camouflaged merchant"><img src="img/kecleon.png" alt="Il negozio di Kecleon durante la partita" data-en-alt="Kecleon's shop during a run" loading="lazy"></div></div>
+        <div class="frame notch wide"><div class="screen notch" data-cap="L'effetto della Lastrasaetta: un fulmine ogni due secondi" data-en-cap="The Zap Plate's effect: a lightning bolt every two seconds"><img src="img/lastra-effetto.png" alt="Fulmini della Lastrasaetta sul campo" data-en-alt="Zap Plate lightning on the field" loading="lazy"><span class="cap" data-en="Zap Plate">Lastrasaetta</span></div></div>
+      </div>
+      <div>
+        <span class="chip tag light" style="--c: var(--t-steel)" data-en="Secrets">Segreti</span>
+        <h3 data-en="The map hides things">La mappa nasconde cose</h3>
+        <p data-en="16 of Arceus' Plates hidden across the levels, one per type, each with an effect that changes the run. A camouflaged Kecleon who sells you goods for your coins. Fossils, eggs, items on the ground, tufts of grass and boulders to break.">16 Lastre di Arceus nascoste nei livelli, una per tipo, ognuna con un effetto che cambia la partita. Un Kecleon mimetizzato che ti vende la merce in cambio delle monete. Fossili, uova, strumenti a terra, ciuffi d'erba e massi da rompere.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ REGIONS ============ -->
+<section class="block" id="regioni">
+  <div class="wrap">
+    <div class="rv">
+      <div class="kicker label" data-en="Worlds">Mondi</div>
+      <h2 data-en="Four regions, 25 levels">Quattro regioni, 25 livelli</h2>
+      <p class="intro" data-en="Forests, caves, towers, deserts and islands: every level has its own map, its own species, its own boss. Rain and sun change the strength of Water and Fire, sandstorms and hail hurt anyone of the wrong type, and at night you only see around yourself.">Boschi, grotte, torri, deserti e isole: ogni livello ha la sua mappa, le sue specie, il suo boss. Pioggia e sole cambiano la forza di Acqua e Fuoco, tempeste di sabbia e grandine fanno male a chi non è del tipo giusto, e di notte vedi solo intorno a te.</p>
+    </div>
+    <div class="tabs rv" role="tablist" id="tabs"></div>
+    <div class="levels" id="levels"></div>
+    <div class="diffs rv">
+      <div class="frame notch diff n"><div class="in notch" data-en="<h3>Normal</h3><p>To learn the level and unlock the next one.</p>"><h3>Normale</h3><p>Per imparare il livello e sbloccare il successivo.</p></div></div>
+      <div class="frame notch diff h"><div class="in notch" data-en="<h3>Hard</h3><p>Sturdier, meaner foes and missions of their own.</p>"><h3>Difficile</h3><p>Nemici più resistenti e più cattivi, missioni dedicate.</p></div></div>
+      <div class="frame notch diff u"><div class="in notch" data-en="<h3>Ultra</h3><p>Legendaries and trainers to challenge. Only for those who did their homework.</p>"><h3>Ultra</h3><p>Leggendari e allenatori da sfidare. Solo per chi ha studiato.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PROGRESSION ============ -->
+<section class="block alt" id="progressione">
+  <div class="wrap">
+    <div class="rv center">
+      <div class="kicker label" data-en="Progression">Progressione</div>
+      <h2 data-en="Every run leaves you something">Ogni partita ti lascia qualcosa</h2>
+      <p class="intro" data-en="Even when you lose. Coins stay in the bank, missions unlock Pokémon, the Pokédex fills up and collectible cards wait for the right feat.">Anche quando perdi. Le monete restano in banca, le missioni sbloccano Pokémon, il Pokédex si riempie e le carte da collezione aspettano solo l'impresa giusta.</p>
+    </div>
+    <div class="grid3">
+      <div class="frame notch card rv"><div class="in notch">
+        <div class="screen" data-cap="Scelta del Pokémon e negozio" data-en-cap="Pokémon selection and shop"><img src="img/negozio.png" alt="Schermata di scelta del Pokémon con il negozio" data-en-alt="Pokémon selection screen with the shop" loading="lazy"></div>
+        <div class="body" data-en="<h3>Shop</h3><p>Buy Pokémon, second moves, special moves, grades and 20 permanent upgrades.</p>"><h3>Negozio</h3><p>Compra Pokémon, seconde mosse, mosse speciali, gradi e 20 potenziamenti permanenti.</p></div>
+      </div></div>
+      <div class="frame notch card rv"><div class="in notch">
+        <div class="screen" data-cap="L'elenco delle missioni" data-en-cap="The mission list"><img src="img/missioni.png" alt="Elenco delle missioni" data-en-alt="Mission list" loading="lazy"></div>
+        <div class="body" data-en="<h3>Missions</h3><p>&quot;The 108 souls&quot;, &quot;Magikarp's redemption&quot;, &quot;Iron stomach&quot;… over a hundred goals, many of them unlock a Pokémon.</p>"><h3>Missioni</h3><p>"Le 108 anime", "Il riscatto di Magikarp", "Stomaco di ferro"… più di cento obiettivi, molti sbloccano un Pokémon.</p></div>
+      </div></div>
+      <div class="frame notch card rv"><div class="in notch">
+        <div class="screen" data-cap="Il Pokédex" data-en-cap="The Pokédex"><img src="img/pokedex.png" alt="Pokédex del gioco" data-en-alt="The game's Pokédex" loading="lazy"></div>
+        <div class="body" data-en="<h3>Pokédex</h3><p>Every species seen and defeated, region by region. Completing Kanto holds a surprise.</p>"><h3>Pokédex</h3><p>Ogni specie incontrata e sconfitta, regione per regione. Completare Kanto ha una sorpresa.</p></div>
+      </div></div>
+    </div>
+    <div class="grid3">
+      <div class="frame notch card rv"><div class="in notch">
+        <div class="screen" data-cap="Nuova carta! Pikachu-ex, illustrazione speciale" data-en-cap="New card! Pikachu-ex, special illustration"><img src="img/carta-vera.png" alt="Rivelazione di una carta Pikachu-ex al centro dell'album" data-en-alt="A Pikachu-ex card revealed over the album" loading="lazy"></div>
+        <div class="body" data-en="<h3>Collectible cards</h3><p>Real TCG cards, tiltable in 3D with holo glare. The reveal comes with light, rays and a flip: the rarer, the longer.</p>"><h3>Carte collezionabili</h3><p>Le carte del GCC, inclinabili in 3D con riflessi olografici. La rivelazione arriva con luce, raggi e capriola: più è rara, più dura.</p></div>
+      </div></div>
+      <div class="frame notch card rv"><div class="in notch">
+        <div class="screen" data-cap="L'album di Pikachu: carte trovate, da scoprire e imprese ancora aperte" data-en-cap="Pikachu's album: cards found, cards to reveal and feats still open"><img src="img/album.png" alt="Album delle carte di Pikachu con carte scoperte, dorsi e imprese" data-en-alt="Pikachu's card album with revealed cards, card backs and feats" loading="lazy"></div>
+        <div class="body" data-en="<h3>Feats</h3><p>Commons come from playing, rares only from a feat: &quot;defeat 2,000 Pokémon with Ember&quot;. Legendaries take many runs.</p>"><h3>Imprese</h3><p>Le comuni arrivano giocando, le rare solo con un'impresa: "sconfiggi 2.000 Pokémon con Braciere". Le leggendarie chiedono molte partite.</p></div>
+      </div></div>
+      <div class="frame notch card rv"><div class="in notch">
+        <div class="screen" data-cap="Album dei Pokémon giocabili" data-en-cap="Album of playable Pokémon"><img src="img/roster.png" alt="Album dei Pokémon giocabili" data-en-alt="Album of playable Pokémon" loading="lazy"></div>
+        <div class="body" data-en="<h3>81 lines to unlock</h3><p>Starters, fossils, legendaries and mythicals. Some are bought, some are found, others must be beaten.</p>"><h3>81 linee da sbloccare</h3><p>Starter, fossili, leggendari e misteriosi. Alcuni si comprano, altri si trovano, altri ancora si battono.</p></div>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PLATFORMS ============ -->
+<section class="block" id="piattaforme">
+  <div class="wrap">
+    <div class="rv">
+      <div class="kicker label" data-en="Platforms">Piattaforme</div>
+      <h2 data-en="On PC, on your phone, with a pad">Sul PC, sul telefono, col pad</h2>
+      <p class="intro" data-en="Written in C# with MonoGame: the same game runs on Windows and Android, with controls designed for each.">Scritto in C# con MonoGame: lo stesso gioco gira su Windows e su Android, con i comandi pensati per ognuno.</p>
+    </div>
+    <div class="plat">
+      <div class="frame notch rv"><div class="in notch"><div class="icon">PC</div><div data-en="<h3>Windows</h3><p>Keyboard and mouse, crisp full screen up to 2K and beyond, resizable HUD, smooth 144 Hz.</p>"><h3>Windows</h3><p>Tastiera e mouse, schermo intero nitido fino a 2K e oltre, HUD ridimensionabile, 144 Hz fluidi.</p></div></div></div>
+      <div class="frame notch rv"><div class="in notch"><div class="icon">APK</div><div data-en="<h3>Android</h3><p>Virtual stick on the left, round buttons on the right, the trainer under your thumb.</p>"><h3>Android</h3><p>Stick virtuale a sinistra, pulsanti rotondi a destra, l'allenatore sotto il pollice.</p></div></div></div>
+      <div class="frame notch rv"><div class="in notch"><div class="icon">PAD</div><div data-en="<h3>Controller</h3><p>Plug in a pad and the on-screen keys switch to the controller's buttons on their own.</p>"><h3>Controller</h3><p>Collega un pad e il gioco cambia da solo i tasti a schermo con i pulsanti del controller.</p></div></div></div>
+    </div>
+    <div class="grid2">
+      <div class="frame notch rv"><div class="screen notch" data-cap="Comandi touch su Android" data-en-cap="Touch controls on Android"><img src="img/android.png" alt="Partita con i comandi touch di Android" data-en-alt="A run with Android's touch controls" loading="lazy"><span class="cap">Touch</span></div></div>
+      <div class="frame notch rv"><div class="screen notch" data-cap="HUD con i glifi del controller" data-en-cap="HUD with controller glyphs"><img src="img/controller.png" alt="HUD del gioco con i pulsanti del controller" data-en-alt="The game's HUD with controller buttons" loading="lazy"><span class="cap">Controller</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section class="block alt" id="faq">
+  <div class="wrap">
+    <div class="rv center">
+      <div class="kicker label" data-en="Questions">Domande</div>
+      <h2 data-en="Frequently asked questions">Domande frequenti</h2>
+    </div>
+    <div class="faq rv">
+      <details data-en="<summary>How much does it cost?</summary><p>Nothing. PokéRogue is not for sale and has no ads, purchases, donations or subscriptions. It is a personal project.</p>"><summary>Quanto costa?</summary><p>Niente. PokéRogue non è in vendita, non ha pubblicità, acquisti, donazioni o abbonamenti. È un progetto personale.</p></details>
+      <details data-en="<summary>Can I download it?</summary><p>No. This page is only a showcase: the game is not distributed, there are no download links and it will not appear on any store.</p>"><summary>Posso scaricarlo?</summary><p>No. Questa pagina è solo una vetrina: il gioco non viene distribuito, non ci sono link per scaricarlo e non arriverà su nessun negozio.</p></details>
+      <details data-en="<summary>Is this the PokéRogue I play in the browser?</summary><p>No. Another fan game with the same name exists, made by other people: this project has no connection with it.</p>"><summary>È il PokéRogue che gioco nel browser?</summary><p>No. Esiste un altro fan game con lo stesso nome, fatto da altre persone: questo progetto non ha alcun legame con quello.</p></details>
+      <details data-en="<summary>Is it an official Pokémon game?</summary><p>No. It is an amateur project made by a fan, with no connection to Nintendo, The Pokémon Company, Creatures or GAME FREAK.</p>"><summary>È un gioco ufficiale Pokémon?</summary><p>No. È un progetto amatoriale fatto da un appassionato, senza alcun legame con Nintendo, The Pokémon Company, Creatures o GAME FREAK.</p></details>
+      <details data-en="<summary>What language is the game in?</summary><p>Italian. This page is in English too, but menus, moves and names in the game (and in the screenshots) are Italian.</p>"><summary>In che lingua è il gioco?</summary><p>In italiano: menu, mosse e nomi sono quelli delle versioni italiane. La pagina c'è anche in inglese.</p></details>
+      <details data-en="<summary>Who made it?</summary><p>Edoardo Filpi, as a one-person project in spare time, in C# with MonoGame.</p>"><summary>Chi l'ha fatto?</summary><p>Edoardo Filpi, da solo, nel tempo libero, in C# con MonoGame.</p></details>
+      <details data-en="<summary>Where do sprites and data come from?</summary><p>From community projects, each with its own licence: sprites from PMD Sprite Collab (CC BY-NC 4.0), data and cries from PokeAPI, effects and trainers from the Pokémon Showdown client, card images through TCGdex. Code, interface, move effects and music are original. The details are in the legal notes.</p>"><summary>Da dove vengono sprite e dati?</summary><p>Da progetti della comunità con le loro licenze: sprite di PMD Sprite Collab (CC BY-NC 4.0), dati e versi di PokeAPI, effetti e allenatori dal client di Pokémon Showdown, immagini delle carte tramite TCGdex. Codice, interfaccia, effetti delle mosse e musica sono originali. I dettagli sono nelle note legali.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LEGAL ============ -->
+<section class="block legal" id="legale">
+  <div class="wrap">
+    <div class="frame notch box rv"><div class="in notch">
+      <div class="kicker label" data-en="Legal notes">Note legali</div>
+      <h2 data-en="A project for passion, not for profit">Un progetto per passione, non per profitto</h2>
+
+      <div class="seal">
+        <div class="big">0 €</div>
+        <div data-en="PokéRogue is not sold, shows no ads, takes no donations and collects no data. No earnings, in any form.">PokéRogue non è venduto, non mostra pubblicità, non accetta donazioni e non raccoglie dati. Nessun guadagno, in nessuna forma.</div>
+      </div>
+
+      <div data-en="<h3>What this project is</h3><p>PokéRogue is an amateur video game made by a single fan, Edoardo Filpi, for personal use and to learn game programming. This page exists only to present that work.</p>">
+        <h3>Natura del progetto</h3>
+        <p>PokéRogue è un videogioco amatoriale creato da un singolo appassionato, Edoardo Filpi, per uso personale e a scopo di studio della programmazione di videogiochi. Questa pagina ha il solo scopo di presentarne il lavoro.</p>
+      </div>
+
+      <div data-en="<h3>Trademarks and rights</h3><p>Pokémon, the Pokémon Trading Card Game and all related names, characters, images, card illustrations, sounds and trademarks are © and ™ of Nintendo, The Pokémon Company, Creatures Inc. and GAME FREAK inc. PokéRogue <b>is not an official product</b> and is not affiliated with, sponsored, endorsed or in any way connected to these companies. No infringement is intended: all rights remain with their respective owners.</p>">
+        <h3>Marchi e diritti</h3>
+        <p>Pokémon, il Gioco di Carte Collezionabili Pokémon e tutti i nomi, personaggi, immagini, illustrazioni delle carte, suoni e marchi correlati sono © e ™ di Nintendo, The Pokémon Company, Creatures Inc. e GAME FREAK inc. PokéRogue <b>non è un prodotto ufficiale</b> e non è affiliato, sponsorizzato, approvato o in alcun modo collegato a queste società. Nessuna violazione è intenzionale: ogni diritto resta dei rispettivi titolari.</p>
+      </div>
+
+      <div data-en="<h3>Distribution</h3><p>The game <b>is not distributed</b>: there are no links to download it and it will not be uploaded to stores or platforms. This page is not indexed by search engines and shows images of the game for presentation only.</p><p>The name PokéRogue is also used by another fan game, made by different people: the two projects have no connection.</p>">
+        <h3>Distribuzione</h3>
+        <p>Il gioco <b>non è distribuito</b>: non esistono link per scaricarlo e non verrà caricato su negozi o piattaforme. Questa pagina non è indicizzata dai motori di ricerca e mostra solo immagini del gioco a scopo di presentazione.</p>
+        <p>Il nome PokéRogue è usato anche da un altro fan game, realizzato da persone diverse: i due progetti non hanno alcun legame.</p>
+      </div>
+
+      <h3 data-en="Third-party content">Contenuti di terze parti</h3>
+      <p data-en="The game uses resources made by the community, each with its own licence and credits:">Il gioco usa risorse create dalla comunità, ciascuna con la propria licenza e i propri crediti:</p>
+      <div class="credits">
+        <div class="credit" data-en="<b>PMD Sprite Collab</b><span>Pokémon sprites and portraits, CC BY-NC 4.0, each artist credited in the game's Credits screen</span>"><b>PMD Sprite Collab</b><span>Sprite e ritratti dei Pokémon, CC BY-NC 4.0, crediti ai singoli artisti nella schermata Crediti del gioco</span></div>
+        <div class="credit" data-en="<b>PokeAPI</b><span>Data, item icons and Pokémon cries (PokeAPI/cries)</span>"><b>PokeAPI</b><span>Dati, icone degli strumenti e versi dei Pokémon (PokeAPI/cries)</span></div>
+        <div class="credit" data-en="<b>Pokémon Showdown</b><span>Visual effects and trainer sprites from the client</span>"><b>Pokémon Showdown</b><span>Effetti grafici e sprite degli allenatori dal client</span></div>
+        <div class="credit" data-en="<b>TCGdex</b><span>Images of Pokémon Trading Card Game cards, © their respective owners, obtained through TCGdex</span>"><b>TCGdex</b><span>Immagini delle carte del Gioco di Carte Collezionabili Pokémon, © dei rispettivi titolari, ottenute tramite TCGdex</span></div>
+        <div class="credit" data-en="<b>Fonts</b><span>Pixelify Sans, Silkscreen, Jersey 10, Press Start 2P, VT323 (SIL Open Font License), also used by this site</span>"><b>Font</b><span>Pixelify Sans, Silkscreen, Jersey 10, Press Start 2P, VT323 (SIL Open Font License), usati anche da questo sito</span></div>
+        <div class="credit" data-en="<b>Libraries</b><span>MonoGame, FontStashSharp, NVorbis, .NET</span>"><b>Librerie</b><span>MonoGame, FontStashSharp, NVorbis, .NET</span></div>
+      </div>
+      <p data-en="Original work by the author: code, interface, move effects, generated maps, synthesised music and sound effects.">Sono originali e dell'autore: codice, interfaccia, effetti delle mosse, mappe generate, musica ed effetti sonori sintetizzati.</p>
+
+      <div data-en="<h3>Removal on request</h3><p>If you hold rights to something shown here and want it taken down, write to <a class=&quot;mail&quot;></a>: it will be removed right away, no questions asked.</p>">
+        <h3>Rimozione su richiesta</h3>
+        <p>Se sei titolare di diritti su qualcosa che compare qui e vuoi che venga tolto, scrivi a <a class="mail"></a>: il contenuto verrà rimosso subito, senza discussioni.</p>
+      </div>
+
+      <div data-en="<h3>Privacy</h3><p>This site is hosted on GitHub Pages. It uses no cookies, analytics, ads or third-party services: even the fonts are served from here. It only remembers, in your browser, the language you picked. GitHub, which provides the hosting, may log technical data about visits such as your IP address, as described in its <a href=&quot;https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement&quot; rel=&quot;noopener&quot;>privacy statement</a>.</p>">
+        <h3>Privacy</h3>
+        <p>Questo sito è ospitato su GitHub Pages. Non usa cookie, statistiche, pubblicità o servizi di terze parti: anche i font sono serviti da qui. Ricorda soltanto, nel tuo browser, la lingua che hai scelto. GitHub, che fornisce l'hosting, può registrare dati tecnici delle visite come l'indirizzo IP, secondo la sua <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" rel="noopener">informativa sulla privacy</a>.</p>
+      </div>
+    </div></div>
+  </div>
+</section>
+
+<footer>
+  <div class="brand">PokéRogue</div>
+  <p data-en="A non-commercial amateur project · © 2026 Edoardo Filpi · <a class=&quot;mail&quot;></a><br>Pokémon © Nintendo, Creatures Inc., GAME FREAK inc., The Pokémon Company. This site is not affiliated with any of them.">Progetto amatoriale non commerciale · © 2026 Edoardo Filpi · <a class="mail"></a><br>
+  Pokémon © Nintendo, Creatures Inc., GAME FREAK inc., The Pokémon Company. Questo sito non è affiliato a nessuna di esse.</p>
+</footer>
+
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Immagine ingrandita"><div><img id="lbimg" alt=""><div class="cap" id="lbcap"></div></div></div>
+
+<script>
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Digits in Jersey 10 inside any other text, like the game's UiDraw.TextWithNumbers (Pixelify's 5 reads as S).
+function wrapDigits(root) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: n => /\d/.test(n.data) && !n.parentElement.closest("script, style, .num, .d, .key, .icon, title")
+      ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
+  });
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  for (const node of nodes) {
+    const frag = document.createDocumentFragment();
+    node.data.split(/(\d+(?:[.,:×–]\d+)*)/).forEach((part, i) => {
+      if (!part) return;
+      if (i % 2) { const s = document.createElement("span"); s.className = "d"; s.textContent = part; frag.appendChild(s); }
+      else frag.appendChild(document.createTextNode(part));
+    });
+    node.replaceWith(frag);
+  }
+}
+
+// The address is put together here, so it never sits whole in the page for scrapers.
+function fillMail(root) {
+  const address = ["edoardofilpi00", "gmail.com"].join("@");
+  root.querySelectorAll("a.mail").forEach(a => { a.href = "mailto:" + address; a.textContent = address; });
+}
+
+// ---------- data, in both languages ----------
+const specials = [
+  ["Normal", "Iper Raggio", "Normale", "Hyper Beam"], ["Fire", "Fuocobomba", "Fuoco", "Fire Blast"], ["Water", "Idropompa", "Acqua", "Hydro Pump"],
+  ["Grass", "Solarraggio", "Erba", "Solar Beam"], ["Electric", "Falcecannone", "Elettro", "Zap Cannon"], ["Ice", "Bora", "Ghiaccio", "Blizzard"],
+  ["Fighting", "Zuffa", "Lotta", "Close Combat"], ["Poison", "Sporcolancio", "Veleno", "Gunk Shot"], ["Ground", "Magnitudo", "Terra", "Magnitude"],
+  ["Flying", "Baldeali", "Volante", "Brave Bird"], ["Psychic", "Psichico", "Psico", "Psychic"], ["Bug", "Ronzio", "Coleottero", "Bug Buzz"],
+  ["Rock", "Devastomasso", "Roccia", "Rock Wrecker"], ["Ghost", "Oscurotuffo", "Spettro", "Shadow Force"], ["Dragon", "Oltraggio", "Drago", "Outrage"],
+  ["Dark", "Nottesferza", "Buio", "Night Slash"], ["Steel", "Meteorpugno", "Acciaio", "Meteor Mash"]
+];
+const regions = {
+  Kanto: [["bosco-smeraldo", "Bosco Smeraldo", "Viridian Forest"], ["monte-luna", "Monte Luna", "Mt. Moon"], ["torre-pokemon", "Torre Pokémon", "Pokémon Tower"], ["centrale-elettrica", "Centrale Elettrica", "Power Plant"], ["isole-spumarine", "Isole Spumarine", "Seafoam Islands"], ["via-vittoria", "Via Vittoria", "Victory Road"], ["grotta-ignota", "Grotta Ignota", "Cerulean Cave"]],
+  Johto: [["bosco-di-lecci", "Bosco di Lecci", "Ilex Forest"], ["rovine-d-alfa", "Rovine d'Alfa", "Ruins of Alph"], ["torre-bruciata", "Torre Bruciata", "Burned Tower"], ["isole-vorticose", "Isole Vorticose", "Whirl Islands"], ["torre-campana", "Torre Campana", "Bell Tower"], ["monte-argento", "Monte Argento", "Mt. Silver"]],
+  Hoenn: [["bosco-petalo", "Bosco Petalo", "Petalburg Woods"], ["monte-camino", "Monte Camino", "Mt. Chimney"], ["deserto", "Deserto", "Desert"], ["isola-meridionale", "Isola Meridionale", "Southern Island"], ["grotta-dei-tempi", "Grotta dei Tempi", "Cave of Origin"], ["torre-dei-cieli", "Torre dei Cieli", "Sky Pillar"]],
+  Sinnoh: [["bosco-evopoli", "Bosco Evopoli", "Eterna Forest"], ["monte-corona", "Monte Corona", "Mt. Coronet"], ["lago-verita", "Lago Verità", "Lake Verity"], ["giardino-fiorito", "Giardino Fiorito", "Floaroma Meadow"], ["tempio-nevoso", "Tempio Nevoso", "Snowpoint Temple"], ["vetta-lancia", "Vetta Lancia", "Spear Pillar"]]
+};
+const words = {
+  it: { level: "Livello", typed: "mossa speciale di tipo", picture: "Illustrazione della mossa speciale", preview: "Anteprima del livello", zoom: "Immagine ingrandita",
+        title: "PokéRogue", description: "PokéRogue: un roguelite d'azione amatoriale e non commerciale con i Pokémon di Kanto, Johto, Hoenn e Sinnoh." },
+  en: { level: "Level", typed: "special move of type", picture: "Picture of the special move", preview: "Preview of the level", zoom: "Enlarged image",
+        title: "PokéRogue", description: "PokéRogue: an amateur, non-commercial action roguelite with the Pokémon of Kanto, Johto, Hoenn and Sinnoh." }
+};
+let lang = "it";
+
+// ---------- specials marquee (two copies for a seamless loop) ----------
+const track = document.getElementById("track");
+function buildSpecials() {
+  const w = words[lang];
+  const html = specials.map(([t, it, typeIt, en]) => {
+    const name = lang === "en" ? en : it, type = lang === "en" ? t : typeIt;
+    const light = ["Electric", "Ice", "Ground", "Steel"].includes(t) ? " light" : "";
+    return `
+    <div class="special">
+      <div class="frame notch"><div class="screen notch" data-cap="${name}, ${w.typed} ${type}">
+        <img src="img/tipi/${t}.png" alt="${w.picture} ${name}" loading="lazy">
+      </div></div>
+      <div class="meta"><b>${name}</b><span class="chip${light}" style="--c: var(--t-${t.toLowerCase()})">${type}</span></div>
+    </div>`;
+  }).join("");
+  track.innerHTML = html + html;
+  track.querySelectorAll(".special").forEach((el, i) => { if (i >= specials.length) el.setAttribute("aria-hidden", "true"); });
+}
+
+// ---------- region tabs ----------
+const tabs = document.getElementById("tabs"), levels = document.getElementById("levels");
+let region = "Kanto";
+function showRegion(name) {
+  region = name;
+  const w = words[lang];
+  tabs.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", b.dataset.r === name));
+  levels.innerHTML = regions[name].map(([id, it, en], i) => {
+    const label = lang === "en" ? en : it;
+    return `
+    <div class="level">
+      <div class="frame notch"><div class="screen notch" data-cap="${label} · ${name}"><img src="img/livelli/${id}.png" alt="${w.preview} ${label}" loading="lazy"></div></div>
+      <div class="name"><b>${label}</b><span class="label">${w.level} ${i + 1}</span></div>
+    </div>`;
+  }).join("");
+  wrapDigits(levels);
+}
+Object.keys(regions).forEach(r => {
+  const b = document.createElement("button");
+  b.className = "tab"; b.setAttribute("role", "tab"); b.dataset.r = r;
+  b.textContent = `${r} · ${regions[r].length}`;
+  b.onclick = () => showRegion(r);
+  tabs.appendChild(b);
+});
+
+// ---------- language ----------
+const translated = [...document.querySelectorAll("[data-en]")].map(el => ({ el, it: el.innerHTML, en: el.dataset.en }));
+const alts = [...document.querySelectorAll("[data-en-alt]")].map(el => ({ el, it: el.alt, en: el.dataset.enAlt }));
+const caps = [...document.querySelectorAll("[data-en-cap]")].map(el => ({ el, it: el.dataset.cap, en: el.dataset.enCap }));
+const labels = [...document.querySelectorAll("[data-en-label]")].map(el => ({ el, it: el.getAttribute("aria-label"), en: el.dataset.enLabel }));
+
+function setLang(next) {
+  lang = next;
+  document.documentElement.lang = lang;
+  for (const t of translated) { t.el.innerHTML = t[lang]; wrapDigits(t.el); }
+  for (const t of alts) t.el.alt = t[lang];
+  for (const t of caps) t.el.dataset.cap = t[lang];
+  for (const t of labels) t.el.setAttribute("aria-label", t[lang]);
+  document.title = words[lang].title;
+  document.querySelector('meta[name="description"]').content = words[lang].description;
+  document.getElementById("lb").setAttribute("aria-label", words[lang].zoom);
+  document.querySelectorAll(".langs button").forEach(b => b.setAttribute("aria-pressed", b.dataset.lang === lang));
+  buildSpecials();
+  showRegion(region);
+  fillMail(document);
+  try { localStorage.setItem("lang", lang); } catch (e) {}
+}
+document.querySelectorAll(".langs button").forEach(b => b.onclick = () => setLang(b.dataset.lang));
+
+// ?lang= wins, then the last choice, then the browser's language
+let saved = null;
+try { saved = localStorage.getItem("lang"); } catch (e) {}
+const asked = new URLSearchParams(location.search).get("lang");
+const first = ["it", "en"].includes(asked) ? asked : ["it", "en"].includes(saved) ? saved : (navigator.language || "it").toLowerCase().startsWith("it") ? "it" : "en";
+wrapDigits(document.body);
+setLang(first);
+
+// Animated clips are swapped for their still frame when the viewer asked for less motion.
+if (reduce) document.querySelectorAll("img[data-still]").forEach(img => img.src = img.dataset.still);
+
+// ---------- lightbox ----------
+const lb = document.getElementById("lb"), lbimg = document.getElementById("lbimg"), lbcap = document.getElementById("lbcap");
+document.addEventListener("click", e => {
+  const s = e.target.closest(".screen");
+  if (s && !lb.contains(s)) {
+    const img = s.querySelector("img");
+    lbimg.src = img.src; lbimg.alt = img.alt; lbcap.textContent = s.dataset.cap || img.alt;
+    lb.classList.add("open");
+  } else if (lb.contains(e.target)) lb.classList.remove("open");
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape") lb.classList.remove("open"); });
+
+// ---------- reveal + counters ----------
+const io = new IntersectionObserver(entries => entries.forEach(en => {
+  if (!en.isIntersecting) return;
+  en.target.classList.add("in-view");
+  io.unobserve(en.target);
+}), { threshold: .12 });
+document.querySelectorAll(".rv").forEach(el => io.observe(el));
+
+// Italian grouping, also for four digits (toLocaleString leaves "1500" whole); English uses a comma
+const fmt = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, lang === "en" ? "," : ".");
+const countIo = new IntersectionObserver(entries => entries.forEach(en => {
+  if (!en.isIntersecting) return;
+  const el = en.target, to = +el.dataset.count, t0 = performance.now(), dur = reduce ? 0 : 1100;
+  const step = t => {
+    const k = dur ? Math.min(1, (t - t0) / dur) : 1;
+    el.textContent = fmt(Math.round(to * (1 - Math.pow(1 - k, 3))));
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+  countIo.unobserve(el);
+}), { threshold: .6 });
+document.querySelectorAll("[data-count]").forEach(el => countIo.observe(el));
+document.querySelectorAll(".langs button").forEach(b => b.addEventListener("click", () =>
+  document.querySelectorAll("[data-count]").forEach(el => { if (el.textContent !== "0") el.textContent = fmt(+el.dataset.count); })));
+
+// ---------- HUD: scroll = experience, sections = levels, a game clock ----------
+const xp = document.getElementById("xp"), lvEl = document.getElementById("lv"), toast = document.getElementById("toast");
+const sections = [...document.querySelectorAll("section[id]")];
+const links = [...document.querySelectorAll(".nav nav a")];
+let level = 1, toastTimer;
+function onScroll() {
+  const reached = sections.filter(s => s.getBoundingClientRect().top < innerHeight * .45).length;
+  const lv = 1 + reached;
+  // the bar fills between one section and the next, like the game's experience bar
+  const cur = sections[reached - 1], next = sections[reached];
+  let fill = 1;
+  if (next) {
+    const a = cur ? cur.offsetTop : 0, b = next.offsetTop;
+    fill = Math.min(1, Math.max(0, (scrollY + innerHeight * .45 - a) / (b - a)));
+  }
+  xp.style.width = (fill * 100).toFixed(1) + "%";
+  if (lv > level) {
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 900);
+  }
+  level = lv;
+  lvEl.textContent = lv;
+  const id = cur && cur.id;
+  links.forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#" + id));
+}
+addEventListener("scroll", onScroll, { passive: true });
+onScroll();
+
+const clock = document.getElementById("clock"), start = Date.now();
+setInterval(() => {
+  const s = Math.floor((Date.now() - start) / 1000);
+  clock.textContent = String(Math.floor(s / 60) % 100).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+}, 1000);
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && document.activeElement === document.body) location.hash = "#gioco";
+});
+
+// ---------- starfield ----------
+const cv = document.getElementById("stars"), ctx = cv.getContext("2d");
+let stars = [], gems = [];
+function resize() {
+  const r = cv.getBoundingClientRect();
+  cv.width = Math.round(r.width / 3); cv.height = Math.round(r.height / 3); // chunky pixels
+  ctx.imageSmoothingEnabled = false;
+  stars = Array.from({ length: Math.round(cv.width * cv.height / 260) }, () => ({
+    x: Math.random() * cv.width, y: Math.random() * cv.height * .62, p: Math.random() * 6.28, s: .4 + Math.random() * 1.6, big: Math.random() < .08
+  }));
+  gems = Array.from({ length: 14 }, () => ({ x: Math.random() * cv.width, y: cv.height * (.2 + Math.random() * .6), v: .05 + Math.random() * .12, p: Math.random() * 6.28 }));
+}
+function draw(t) {
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  for (const s of stars) {
+    const a = .35 + .65 * (.5 + .5 * Math.sin(t / 1000 * s.s + s.p));
+    ctx.fillStyle = `rgba(235,230,255,${a})`;
+    ctx.fillRect(s.x | 0, s.y | 0, 1, 1);
+    if (s.big && a > .8) { ctx.fillRect((s.x | 0) - 1, s.y | 0, 3, 1); ctx.fillRect(s.x | 0, (s.y | 0) - 1, 1, 3); }
+  }
+  // floating experience gems
+  for (const g of gems) {
+    g.y -= g.v; if (g.y < cv.height * .08) { g.y = cv.height * .85; g.x = Math.random() * cv.width; }
+    const bob = Math.sin(t / 600 + g.p) * 1.5, x = g.x | 0, y = (g.y + bob) | 0;
+    ctx.fillStyle = "rgba(74,163,255,.55)"; ctx.fillRect(x - 1, y, 3, 1); ctx.fillRect(x, y - 1, 1, 3);
+    ctx.fillStyle = "rgba(190,225,255,.9)"; ctx.fillRect(x, y, 1, 1);
+  }
+  if (!reduce) requestAnimationFrame(draw);
+}
+addEventListener("resize", resize);
+resize();
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>

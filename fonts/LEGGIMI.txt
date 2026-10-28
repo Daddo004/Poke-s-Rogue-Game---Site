@@ -1,0 +1,6 @@
+Font usati dal sito, copiati da content/fonts del gioco. Tutti sotto SIL Open Font License 1.1
+(https://openfontlicense.org), che ne permette l'uso e la ridistribuzione insieme a un sito o a un programma.
+
+- Pixelify Sans  (c) The Pixelify Sans Project Authors   https://fonts.google.com/specimen/Pixelify+Sans
+- Silkscreen     (c) Jason Kottke                         https://fonts.google.com/specimen/Silkscreen
+- Jersey 10      (c) The Soft Type Project Authors        https://fonts.google.com/specimen/Jersey+10
